@@ -1,0 +1,428 @@
+/* Style général */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    background-color: #f5f5f5;
+    color: #333;
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+main {
+    flex: 1;
+}
+
+/* Styles de la barre de navigation */
+.navbar {
+    background-color: #003435;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 0.5rem 1rem;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    height: 65px;
+}
+
+.container-fluid {
+    justify-content: flex-start;
+    align-items: center;
+    
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+}
+
+.navbar-brand img {
+    height: 50px;
+    width: auto;
+}
+
+/* Styles des cartes */
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,.1);
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.card-header {
+    font-weight: bold;
+}
+
+/* Styles des boutons */
+.btn {
+    border-radius: 5px;
+    padding: 0.5rem 1rem;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+.bg-primary-custom {
+    background-color: #003435 !important;
+}
+.text-primary-custom {
+    color: #003435 !important;
+}
+.btn-primary-custom {
+    background-color: #003435 !important;
+    border-color: #003435 !important;
+    color: white !important;
+    transition: all 0.3s ease;
+}
+.btn-primary-custom:hover {
+    background-color: #004b4d !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Styles des formulaires */
+.form-control {
+    border-radius: 5px;
+    border: 1px solid #ced4da;
+}
+
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25);
+}
+
+/* Styles des alertes */
+.alert {
+    border-radius: 5px;
+    margin-bottom: 1rem;
+}
+
+/* Styles des listes */
+.list-group-item {
+    border: none;
+    border-bottom: 1px solid rgba(0,0,0,.125);
+    padding: 1rem;
+    background-color: #f8f9fa;
+}
+
+.list-group-item:last-child {
+    border-bottom: none;
+}
+
+/* Styles des badges */
+.badge {
+    padding: 0.5em 1em;
+    border-radius: 20px;
+}
+
+/* Styles des icônes */
+.fa, .fas, .far {
+    margin-right: 0.5rem;
+}
+
+/* Styles du footer */
+footer {
+    background-color: #003435;
+    padding: 1rem 0;
+    margin-top: auto;
+}
+
+/* Styles pour les statistiques */
+.stats-card {
+    background-color: #fff;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    margin-bottom: 1rem;
+    text-align: center;
+    border: none;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stats-card h2 {
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: #003435;
+    margin-bottom: 0.5rem;
+}
+
+.stats-card p {
+    color: #666;
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* Styles pour la recherche */
+.search-form {
+    max-width: 500px;
+    margin: 2rem auto;
+}
+
+/* Styles pour les tableaux */
+.table {
+    background-color: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-top: 2rem;
+}
+
+.table thead th {
+    background-color: #003435;
+    color: white;
+    border: none;
+    padding: 1rem;
+    font-weight: 500;
+}
+
+.table tbody td {
+    padding: 1rem;
+    border-color: #eee;
+    color: #333;
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Styles pour la pagination */
+.pagination {
+    margin-top: 1rem;
+    justify-content: center;
+}
+
+.page-link {
+    padding: 0.5rem 1rem;
+    margin: 0 0.25rem;
+    border-radius: 5px;
+}
+
+/* Styles pour les modales */
+.modal-content {
+    border-radius: 10px;
+    border: none;
+}
+
+.modal-header {
+    border-bottom: 1px solid #dee2e6;
+    background-color: #f8f9fa;
+    border-radius: 10px 10px 0 0;
+}
+
+/* Styles pour les tooltips */
+.tooltip {
+    font-size: 0.875rem;
+}
+
+/* Sidebar améliorée */
+.sidebar {
+    position: fixed;
+    top: 65px;
+    left: 0;
+    height: calc(100vh - 65px);
+    width: 250px;
+    background-color: #003435;
+    padding-top: 1rem;
+    transition: all 0.3s ease;
+    z-index: 999;
+    overflow-y: auto;
+}
+
+.sidebar .logo {
+    padding: 20px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.sidebar nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar nav ul li {
+    margin: 5px 0;
+    border: none;
+}
+
+.sidebar nav ul li a {
+    padding: 12px 20px;
+    border-radius: 5px;
+    margin: 0 10px;
+    transition: all 0.3s ease;
+    display: block;
+    color: #fff;
+    text-decoration: none;
+}
+
+.sidebar nav ul li a:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateX(5px);
+}
+
+.sidebar nav ul li a i {
+    margin-right: 10px;
+    width: 20px;
+    text-align: center;
+}
+
+.sidebar-profile {
+    padding: 20px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.profile-image {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    margin: 0 auto 10px;
+    border: 3px solid #fff;
+    object-fit: cover;
+    background: #EFFEFC;
+} 
+
+.profile-name {
+    color: #fff;
+    font-size: 1.1em;
+    margin-bottom: 5px;
+}
+
+.profile-role {
+    color: rgba(255,255,255,0.7);
+    font-size: 0.9em;
+}
+
+/* Main content */
+.main-content {
+    margin-left: 250px;
+    padding: 2rem;
+    padding-top: calc(65px + 2rem);
+    min-height: 100vh;
+    background-color: #f5f5f5;
+    transition: all 0.3s ease;
+}
+
+header {
+    display: flex;
+    justify-content: flex-start;
+    position: fixed;
+    gap: 30px;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #008083;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    width: 100%;
+    position: fixed;
+    left: 0;
+    top: 0;
+}
+
+.logo img {
+    width: 100%;
+    height: 50px;
+    object-fit: cover;
+}
+
+/* Remove burger-btn styles since we're using toggle-sidebar */
+.burger-btn {
+    display: none;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .toggle-sidebar {
+        display: flex;
+        margin-right: 10px;
+    }
+    
+    .sidebar {
+        transform: translateX(-100%);
+    }
+    
+    .sidebar.show {
+        transform: translateX(0);
+    }
+    
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+    }
+    
+    .stats-card {
+        margin-bottom: 1rem;
+    }
+}
+
+@media (min-width: 769px) {
+    .toggle-sidebar {
+        display: none;
+    }
+    
+    .sidebar {
+        transform: translateX(0);
+    }
+}
+
+@media (max-width: 768px) {
+.profile-image {
+    width: 80px;
+    height: 80px;
+}
+}
+
+/* Toggle Sidebar Button */
+.toggle-sidebar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: white;
+    font-size: 2rem;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 1001;
+    border: none;
+    width: 50px;
+    height: 50px;
+    margin-right: 15px;
+}
+
+.toggle-sidebar:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.toggle-sidebar:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.toggle-sidebar .bi-list {
+    font-size: 2rem;
+    line-height: 1;
+}
+
