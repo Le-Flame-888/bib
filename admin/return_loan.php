@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Mettre à jour l'emprunt
         $updateQuery = "UPDATE n_emprunts SET 
-                       statut = 'termine',
+                       statut = 'rendu',
                        date_retour_effective = NOW(),
                        etat_retour = ?,
                        commentaire_retour = ?

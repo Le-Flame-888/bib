@@ -166,9 +166,6 @@ require_once '../Includes/Sidebar.php';
                                                     <span class="badge bg-primary rounded-pill">
                                                         <?php echo ucfirst($emprunt['statut']); ?>
                                                     </span>
-                                                    <button class="btn btn-sm btn-link text-primary" onclick="showLoanDetails(<?php echo $emprunt['id_emprunt']; ?>)">
-                                                        Détails
-                                                    </button>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -264,35 +261,6 @@ require_once '../Includes/Sidebar.php';
                                 Aucune notification non lue
                             </div>
                         <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Loan Details Modal -->
-        <div class="modal fade" id="loanDetailsModal" tabindex="-1" aria-labelledby="loanDetailsModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="loanDetailsModalLabel">Détails de l'emprunt</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="mb-4">
-                            <h6 class="text-primary mb-3">Informations du livre</h6>
-                            <p><strong>Titre:</strong> <span id="bookTitle"></span></p>
-                            <p><strong>ISBN:</strong> <span id="bookIsbn"></span></p>
-                            <p><strong>Code barre:</strong> <span id="bookBarcode"></span></p>
-                        </div>
-                        <div class="mb-4">
-                            <h6 class="text-primary mb-3">Informations de l'emprunt</h6>
-                            <p><strong>Date d'emprunt:</strong> <span id="loanDate"></span></p>
-                            <p><strong>Date de retour prévue:</strong> <span id="returnDate"></span></p>
-                            <p><strong>Statut:</strong> <span id="loanStatus"></span></p>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
                     </div>
                 </div>
             </div>

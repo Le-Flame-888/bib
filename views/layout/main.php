@@ -24,27 +24,6 @@
                             <i class="fas fa-book me-1"></i>Catalogue
                         </a>
                     </li>
-                    <?php if (isset($_SESSION['user'])): ?>
-                        <li class="nav-item">
-                            <a class="nav-link" href="<?php echo APP_URL; ?>/loans">
-                                <i class="fas fa-book-reader me-1"></i>Mes emprunts
-                            </a>
-                        </li>
-                        <?php if ($_SESSION['user']['role'] === 'admin' || $_SESSION['user']['role'] === 'librarian'): ?>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="navbarAdmin" role="button" data-bs-toggle="dropdown">
-                                    <i class="fas fa-cog me-1"></i>Administration
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/admin/books">Gestion des livres</a></li>
-                                    <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/admin/users">Gestion des utilisateurs</a></li>
-                                    <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/admin/loans">Gestion des emprunts</a></li>
-                                    <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/admin/categories">Gestion des catégories</a></li>
-                                    <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/admin/reports">Rapports</a></li>
-                                </ul>
-                            </li>
-                        <?php endif; ?>
-                    <?php endif; ?>
                 </ul>
                 <form class="d-flex me-3" action="<?php echo APP_URL; ?>/search" method="GET">
                     <input class="form-control me-2" type="search" name="q" placeholder="Rechercher un livre..." required>
@@ -53,22 +32,9 @@
                     </button>
                 </form>
                 <ul class="navbar-nav">
-                    <?php if (isset($_SESSION['user'])): ?>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarUser" role="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-user me-1"></i><?php echo isset($_SESSION['user']['login']) ? htmlspecialchars($_SESSION['user']['login']) : 'User'; ?>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/profile">Mon profil</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="<?php echo APP_URL; ?>/auth/logout">Déconnexion</a></li>
-                            </ul>
-                        </li>
-                    <?php else: ?>
-                        <li class="nav-item">
-                            <a class="nav-link" href="<?php echo APP_URL; ?>/auth/Connexion.php">Connexion</a>
-                        </li>
-                    <?php endif; ?>
+                    <li class="nav-item">
+                        <a class="nav-link" href="<?php echo APP_URL; ?>/auth/Connexion.php">Connexion</a>
+                    </li>
                 </ul>
             </div>
         </div>

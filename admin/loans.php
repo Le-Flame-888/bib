@@ -32,7 +32,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'return' && $_SERVER['REQUEST_
 
         // Mettre à jour l'emprunt
         $updateQuery = "UPDATE n_emprunts SET 
-                       statut = 'termine',
+                       statut = 'rendu',
                        date_retour_effective = NOW(),
                        etat_retour = ?,
                        commentaire_retour = ?
@@ -123,7 +123,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_details' && isset($_GET['
     try {
         error_log("Fetching details for loan ID: " . $_GET['id']);
         
-        $detailsQuery = "SELECT e.id_emprunt, e.date_emprunt, e.date_retour, e.statut,
+        $detailsQuery = "SELECT e.id_emprunt, e.date_emprunt, e.date_retour_prevue as date_retour, e.statut,
                                e.date_retour_effective, e.etat_retour, e.commentaire_retour,
                                u.user_nom, u.user_login, 
                                l.titre, l.isbn, l.auteur,
@@ -247,7 +247,7 @@ $stats = [
     'total' => $db->query("SELECT COUNT(*) FROM n_emprunts")->fetchColumn(),
     'actif' => $db->query("SELECT COUNT(*) FROM n_emprunts WHERE statut = 'actif'")->fetchColumn(),
     'en_retard' => $db->query("SELECT COUNT(*) FROM n_emprunts WHERE statut = 'en_retard'")->fetchColumn(),
-    'termine' => $db->query("SELECT COUNT(*) FROM n_emprunts WHERE statut = 'termine'")->fetchColumn(),
+    'termine' => $db->query("SELECT COUNT(*) FROM n_emprunts WHERE statut = 'rendu'")->fetchColumn(),
 ];
 
 // Add success message display
@@ -392,7 +392,7 @@ require_once '../includes/sidebar.php';
                             <option value="all" <?php echo $status === 'all' ? 'selected' : ''; ?>>Tous les statuts</option>
                             <option value="actif" <?php echo $status === 'actif' ? 'selected' : ''; ?>>En cours</option>
                             <option value="en_retard" <?php echo $status === 'en_retard' ? 'selected' : ''; ?>>En retard</option>
-                            <option value="termine" <?php echo $status === 'termine' ? 'selected' : ''; ?>>Terminés</option>
+                            <option value="rendu" <?php echo $status === 'rendu' ? 'selected' : ''; ?>>Terminés</option>
                         </select>
                     </div>
                     <div class="col-12 col-md-2">
@@ -445,7 +445,7 @@ require_once '../includes/sidebar.php';
                                         </td>
                                         <td>
                                             <?php echo date('d/m/Y', strtotime($loan['date_retour_prevue'])); ?>
-                                            <?php if(strtotime($loan['date_retour_prevue']) < time() && $loan['statut'] !== 'termine'): ?>
+                                            <?php if(strtotime($loan['date_retour_prevue']) < time() && $loan['statut'] !== 'rendu'): ?>
                                                 <div class="small text-danger">En retard</div>
                                             <?php endif; ?>
                                         </td>
@@ -459,7 +459,7 @@ require_once '../includes/sidebar.php';
                                                 case 'en_retard':
                                                     $statusClass = 'bg-danger';
                                                     break;
-                                                case 'termine':
+                                                case 'rendu':
                                                     $statusClass = 'bg-info';
                                                     break;
                                             }
@@ -469,7 +469,7 @@ require_once '../includes/sidebar.php';
                                             </span>
                                         </td>
                                         <td class="text-end pe-4">
-                                                <?php if ($loan['statut'] !== 'termine'): ?>
+                                                <?php if ($loan['statut'] !== 'rendu'): ?>
                                                 <button type="button" class="btn btn-outline-success btn-sm" 
                                                             data-bs-toggle="modal"
                                                             data-bs-target="#returnLoanModal"
@@ -767,17 +767,26 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('detailsLoanBarcode').textContent = data.code_barre;
                     document.getElementById('detailsLoanUser').textContent = data.user_nom;
                     document.getElementById('detailsLoanBorrowDate').textContent = data.date_emprunt;
-                    document.getElementById('detailsLoanReturnDate').textContent = data.date_retour_prevue;
-                    document.getElementById('detailsLoanStatus').textContent = data.statut.charAt(0).toUpperCase() + data.statut.slice(1);
+                    document.getElementById('detailsLoanReturnDate').textContent = data.date_retour;
+                    document.getElementById('detailsLoanStatus').textContent = data.statut === 'rendu' ? 'Terminé' :
+                        data.statut === 'actif' ? 'En cours' :
+                        data.statut === 'en_retard' ? 'En retard' : 
+                        data.statut.charAt(0).toUpperCase() + data.statut.slice(1);
                     
                     // Afficher les informations de retour si l'emprunt est terminé
                     const returnInfoDiv = document.getElementById('detailsLoanReturnInfo');
-                    if (data.statut === 'termine' && data.date_retour_effective) {
+                    if (data.statut === 'rendu' && data.date_retour_effective) {
                         returnInfoDiv.innerHTML = `
                             <hr>
                             <h6 class="mb-3">Informations de retour</h6>
                             <p class="mb-2"><strong>Date de retour effective:</strong> ${data.date_retour_effective}</p>
-                            <p class="mb-2"><strong>État au retour:</strong> ${data.etat_retour || 'Non spécifié'}</p>
+                            <p class="mb-2"><strong>État au retour:</strong> ${data.etat_retour ? (
+                                data.etat_retour === 'bon' ? 'Bon état' :
+                                data.etat_retour === 'moyen' ? 'État moyen' :
+                                data.etat_retour === 'mauvais' ? 'Mauvais état' :
+                                data.etat_retour === 'perdu' ? 'Perdu' :
+                                data.etat_retour
+                            ) : 'Non spécifié'}</p>
                             ${data.commentaire_retour ? `<p class="mb-0"><strong>Commentaire:</strong> ${data.commentaire_retour}</p>` : ''}
                         `;
                         returnInfoDiv.classList.remove('d-none');
