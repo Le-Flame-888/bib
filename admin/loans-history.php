@@ -51,7 +51,7 @@ require_once '../includes/header.php';
 require_once '../includes/sidebar.php';
 ?>
 
-<div class="content w-100 m-0 pt-5"  id="content">
+<div class="content w-100 m-0 pt-3"  id="content">
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="h2 text-dark">Historique des emprunts</h1>

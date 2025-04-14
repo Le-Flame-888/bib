@@ -23,6 +23,41 @@ try {
     exit("Database connection error.");
 }
 
+// Traitement du retour d'un emprunt
+if (isset($_GET['action']) && $_GET['action'] === 'return' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+        if (!isset($_POST['id']) || !isset($_POST['etat'])) {
+            throw new Exception("Données manquantes pour le retour");
+        }
+
+        // Mettre à jour l'emprunt
+        $updateQuery = "UPDATE n_emprunts SET 
+                       statut = 'termine',
+                       date_retour_effective = NOW(),
+                       etat_retour = ?,
+                       commentaire_retour = ?
+                       WHERE id_emprunt = ?";
+        
+        $updateStmt = $db->prepare($updateQuery);
+        $result = $updateStmt->execute([
+            $_POST['etat'],
+            $_POST['commentaire'] ?? null,
+            $_POST['id']
+        ]);
+
+        if ($result) {
+            header('Location: loans.php?success=return');
+        } else {
+            throw new Exception("Erreur lors de l'enregistrement du retour");
+        }
+        exit();
+    } catch (Exception $e) {
+        $error = $e->getMessage();
+        header('Location: loans.php?error=' . urlencode($error));
+        exit();
+    }
+}
+
 // Traitement de la création d'un nouvel emprunt
 if (isset($_GET['action']) && $_GET['action'] === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -56,8 +91,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'add' && $_SERVER['REQUEST_MET
         error_log("Exemplaire found: " . print_r($exemplaire, true));
 
         // Insérer le nouvel emprunt
-        $insertQuery = "INSERT INTO n_emprunts (id_exemplaire, id_utilisateur, date_emprunt, date_retour, statut) 
-                       VALUES (?, ?, NOW(), ?, 'actif')";
+        $insertQuery = "INSERT INTO n_emprunts (id_exemplaire, id_utilisateur, date_emprunt, date_retour_prevue, statut) 
+                       VALUES (?, ?, CURRENT_DATE(), ?, 'actif')";
+        
         $insertStmt = $db->prepare($insertQuery);
         $result = $insertStmt->execute([
             $exemplaire['id_exemplaire'],
@@ -65,15 +101,70 @@ if (isset($_GET['action']) && $_GET['action'] === 'add' && $_SERVER['REQUEST_MET
             $_POST['date_retour']
         ]);
 
-        // Debug: Print insert result
+        // Debug: Print insert result and any errors
         error_log("Insert result: " . ($result ? "success" : "failed"));
+        if (!$result) {
+            error_log("PDO Error Info: " . print_r($insertStmt->errorInfo(), true));
+            throw new Exception("Erreur lors de l'enregistrement de l'emprunt");
+        }
 
-        // Rediriger vers la même page pour voir le nouvel emprunt
-        header('Location: loans.php');
+        // Rediriger avec un message de succès
+        header('Location: loans.php?success=add');
         exit();
     } catch (Exception $e) {
-        $error = $e->getMessage();
-        error_log("Error creating loan: " . $error);
+        error_log("Error creating loan: " . $e->getMessage());
+        header('Location: loans.php?error=' . urlencode($e->getMessage()));
+        exit();
+    }
+}
+
+// Récupération des détails d'un emprunt pour le modal
+if (isset($_GET['action']) && $_GET['action'] === 'get_details' && isset($_GET['id'])) {
+    try {
+        error_log("Fetching details for loan ID: " . $_GET['id']);
+        
+        $detailsQuery = "SELECT e.id_emprunt, e.date_emprunt, e.date_retour, e.statut,
+                               e.date_retour_effective, e.etat_retour, e.commentaire_retour,
+                               u.user_nom, u.user_login, 
+                               l.titre, l.isbn, l.auteur,
+                               ex.code_barre
+                        FROM n_emprunts e
+                        JOIN n_utilisateurs u ON e.id_utilisateur = u.user_id
+                        JOIN n_exemplaires ex ON e.id_exemplaire = ex.id_exemplaire
+                        JOIN n_livre l ON ex.id_livre = l.id_livre
+                        WHERE e.id_emprunt = ?";
+        
+        error_log("Query: " . $detailsQuery);
+        
+        $detailsStmt = $db->prepare($detailsQuery);
+        $detailsStmt->execute([$_GET['id']]);
+        $details = $detailsStmt->fetch(PDO::FETCH_ASSOC);
+        
+        error_log("Details found: " . print_r($details, true));
+        
+        if ($details) {
+            // Formater les dates pour l'affichage
+            $details['date_emprunt'] = date('d/m/Y', strtotime($details['date_emprunt']));
+            $details['date_retour_prevue'] = date('d/m/Y', strtotime($details['date_retour']));
+            if ($details['date_retour_effective']) {
+                $details['date_retour_effective'] = date('d/m/Y', strtotime($details['date_retour_effective']));
+            }
+            
+            error_log("Formatted details: " . print_r($details, true));
+            
+            header('Content-Type: application/json');
+            echo json_encode($details);
+        } else {
+            error_log("No details found for loan ID: " . $_GET['id']);
+            http_response_code(404);
+            echo json_encode(['error' => 'Emprunt non trouvé']);
+        }
+        exit();
+    } catch (Exception $e) {
+        error_log("Error fetching loan details: " . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['error' => 'Erreur serveur: ' . $e->getMessage()]);
+        exit();
     }
 }
 
@@ -112,7 +203,7 @@ $status = isset($_GET['status']) ? $_GET['status'] : 'all';
 $search = isset($_GET['search']) ? $_GET['search'] : '';
 
 // Construction de la requête
-$query = "SELECT e.*, u.user_nom, u.user_login, l.titre, l.isbn, ex.code_barre
+$query = "SELECT e.*, e.date_retour_prevue as date_retour_prevue, u.user_nom, u.user_login, l.titre, l.isbn, ex.code_barre, e.id_emprunt
           FROM n_emprunts e
           JOIN n_utilisateurs u ON e.id_utilisateur = u.user_id
           JOIN n_exemplaires ex ON e.id_exemplaire = ex.id_exemplaire
@@ -131,22 +222,24 @@ if ($status !== 'all') {
     $params[] = $status;
 }
 
-// Debug: Print the final query
-error_log("Main query: " . $query);
-error_log("Query params: " . print_r($params, true));
-
 // Compte total pour la pagination
-$countStmt = $db->prepare(str_replace('e.*, u.user_nom', 'COUNT(*) as count', $query));
+$countStmt = $db->prepare(str_replace('e.*, e.date_retour_prevue as date_retour_prevue', 'COUNT(*) as count', $query));
 $countStmt->execute($params);
 $total = $countStmt->fetch(PDO::FETCH_ASSOC)['count'];
 $totalPages = ceil($total / $limit);
 
 // Ajout de la pagination et du tri à la requête principale
 $query .= " ORDER BY e.date_emprunt DESC LIMIT $limit OFFSET $offset";
+
+// Debug: Print the final query
+error_log("Main query: " . $query);
+error_log("Query params: " . print_r($params, true));
+
 $stmt = $db->prepare($query);
-error_log("Executing main query...");
 $stmt->execute($params);
 $loans = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Debug: Print the results
 error_log("Loans fetched: " . print_r($loans, true));
 
 // Statistiques des emprunts
@@ -157,7 +250,18 @@ $stats = [
     'termine' => $db->query("SELECT COUNT(*) FROM n_emprunts WHERE statut = 'termine'")->fetchColumn(),
 ];
 
-
+// Add success message display
+if (isset($_GET['success'])) {
+    $success_message = '';
+    switch ($_GET['success']) {
+        case 'return':
+            $success_message = "Le retour a été enregistré avec succès.";
+            break;
+        case 'add':
+            $success_message = "L'emprunt a été créé avec succès.";
+            break;
+    }
+}
 
 // Définir le titre de la page
 $page_title = "Gestion des emprunts";
@@ -168,17 +272,31 @@ require_once '../includes/sidebar.php';
 ?>
 
 <!-- Main Content Area -->
-<div class="content w-100 m-0 pt-5"  id="content">
+<div class="content p-3"  id="content">
     <div class="container-fluid p-4">
         <!-- Header Section -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="h3 mb-0 text-gray-800">Gestion des emprunts</h1>
             <div class="d-flex gap-2">
-                <button type="button" class="btn btn-primary d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#newLoanModal">
+                <button type="button" class="btn btn-primary d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#empruntModal">
                     <i class="bi bi-plus-circle"></i> Nouvel emprunt
                 </button>
             </div>
         </div>
+
+        <?php if (isset($success_message)): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <?php echo htmlspecialchars($success_message); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <?php endif; ?>
+
+        <?php if (isset($_GET['error'])): ?>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <?php echo htmlspecialchars(urldecode($_GET['error'])); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <?php endif; ?>
 
         <!-- Stats Cards -->
         <div class="row g-4 mb-4">
@@ -305,7 +423,7 @@ require_once '../includes/sidebar.php';
                                 <th>Date d'emprunt</th>
                                 <th>Date de retour</th>
                                 <th>Statut</th>
-                                <th class="px-4">Actions</th>
+                                <th class="text-end pe-4">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -320,33 +438,14 @@ require_once '../includes/sidebar.php';
                                             <?php echo htmlspecialchars($loan['code_barre']); ?>
                                         </td>
                                         <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center me-2" 
-                                                     style="width: 32px; height: 32px;">
-                                                    <span class="text-primary fw-bold">
-                                                        <?php echo strtoupper(substr($loan['user_nom'], 0, 1)); ?>
-                                                    </span>
-                                                </div>
-                                                <div>
                                                     <?php echo htmlspecialchars($loan['user_nom']); ?>
-                                                    <div class="small text-muted">
-                                                        <?php echo htmlspecialchars($loan['user_login']); ?>
-                                                        <?php if($loan['statut'] === 'actif' && strtotime($loan['date_emprunt']) > strtotime('-24 hours')): ?>
-                                                            <span class="badge bg-warning text-dark ms-2">Nouveau</span>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </div>
-                                            </div>
                                         </td>
                                         <td>
                                             <?php echo date('d/m/Y', strtotime($loan['date_emprunt'])); ?>
-                                            <div class="small text-muted">
-                                                Par: <?php echo htmlspecialchars($loan['user_nom']); ?>
-                                            </div>
                                         </td>
                                         <td>
-                                            <?php echo date('d/m/Y', strtotime($loan['date_retour'])); ?>
-                                            <?php if(strtotime($loan['date_retour']) < time() && $loan['statut'] !== 'termine'): ?>
+                                            <?php echo date('d/m/Y', strtotime($loan['date_retour_prevue'])); ?>
+                                            <?php if(strtotime($loan['date_retour_prevue']) < time() && $loan['statut'] !== 'termine'): ?>
                                                 <div class="small text-danger">En retard</div>
                                             <?php endif; ?>
                                         </td>
@@ -369,26 +468,23 @@ require_once '../includes/sidebar.php';
                                                 <?php echo ucfirst($loan['statut']); ?>
                                             </span>
                                         </td>
-                                        <td class="px-4">
-                                            <div class="d-flex gap-2">
+                                        <td class="text-end pe-4">
                                                 <?php if ($loan['statut'] !== 'termine'): ?>
-                                                    <button class="btn btn-sm btn-outline-success d-flex align-items-center gap-1"
+                                                <button type="button" class="btn btn-outline-success btn-sm" 
                                                             data-bs-toggle="modal"
                                                             data-bs-target="#returnLoanModal"
                                                             data-id="<?php echo $loan['id_emprunt']; ?>"
                                                             data-titre="<?php echo htmlspecialchars($loan['titre']); ?>">
-                                                        <i class="bi bi-check-circle"></i>
-                                                        <span>Retourner</span>
+                                                    <i class="bi bi-check-circle me-1"></i> Retourner
                                                     </button>
                                                 <?php endif; ?>
-                                                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+                                            <button type="button" class="btn btn-outline-primary btn-sm ms-2" 
                                                         data-bs-toggle="modal"
                                                         data-bs-target="#viewLoanModal"
-                                                        data-id="<?php echo $loan['id_emprunt']; ?>">
-                                                    <i class="bi bi-eye"></i>
-                                                    <span>Détails</span>
+                                                    data-id="<?php echo $loan['id_emprunt']; ?>"
+                                                    data-titre="<?php echo htmlspecialchars($loan['titre']); ?>">
+                                                <i class="bi bi-info-circle me-1"></i> Détails
                                                 </button>
-                                            </div>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -432,12 +528,12 @@ require_once '../includes/sidebar.php';
     </div>
 </div>
 
-<!-- New Loan Modal -->
-<div class="modal fade" id="newLoanModal" tabindex="-1">
+<!-- Modal Emprunt -->
+<div class="modal fade" id="empruntModal" tabindex="-1" aria-labelledby="empruntModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title text-gray-800">Nouvel emprunt</h5>
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" id="empruntModalLabel">Nouvel emprunt</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="?action=add" method="POST">
@@ -448,119 +544,62 @@ require_once '../includes/sidebar.php';
                             <span class="input-group-text bg-light border-end-0">
                                 <i class="bi bi-search text-muted"></i>
                             </span>
-                            <input type="text" class="form-control form-control-lg border-start-0" id="bookSearch" 
+                            <input type="text" class="form-control border-start-0" id="searchLivre" 
                                    placeholder="Rechercher par titre, auteur ou ISBN..." autocomplete="off"
-                                   list="booksList">
-                            <input type="hidden" name="livre_id" id="selectedBookId" required>
-                            <datalist id="booksList">
+                                   list="livresList" required>
+                            <input type="hidden" name="livre_id" id="selectedLivreId" required>
+                            <datalist id="livresList">
                                 <?php
-                                $booksQuery = $db->query("SELECT id_livre, titre, isbn FROM n_livre ORDER BY titre");
-                                while($book = $booksQuery->fetch(PDO::FETCH_ASSOC)) {
-                                    echo "<option value='" . htmlspecialchars($book['titre']) . " (ISBN: " . htmlspecialchars($book['isbn']) . ")'>";
+                                $livresQuery = $db->query("SELECT l.id_livre, l.titre, l.isbn 
+                                                         FROM n_livre l 
+                                                         WHERE EXISTS (
+                                                             SELECT 1 FROM n_exemplaires e 
+                                                             WHERE e.id_livre = l.id_livre 
+                                                             AND e.id_exemplaire NOT IN (
+                                                                 SELECT id_exemplaire FROM n_emprunts 
+                                                                 WHERE statut IN ('actif', 'en_retard')
+                                                             )
+                                                         )
+                                                         ORDER BY l.titre");
+                                while($livre = $livresQuery->fetch(PDO::FETCH_ASSOC)) {
+                                    echo '<option value="' . htmlspecialchars($livre['titre']) . ' (ISBN: ' . htmlspecialchars($livre['isbn']) . ')" data-id="' . $livre['id_livre'] . '">';
                                 }
                                 ?>
                             </datalist>
                         </div>
-                        <div id="bookSearchResults" class="list-group position-absolute w-100 shadow-sm d-none"
-                             style="max-height: 200px; overflow-y: auto; z-index: 1000;">
-                        </div>
                     </div>
-                    <script>
-                    document.getElementById('bookSearch').addEventListener('input', function(e) {
-                        const searchTerm = e.target.value;
-                        const resultsDiv = document.getElementById('bookSearchResults');
-                        
-                        if (searchTerm.length < 2) {
-                            resultsDiv.classList.add('d-none');
-                            return;
-                        }
 
-                        fetch(`search_books.php?term=${encodeURIComponent(searchTerm)}`)
-                            .then(response => response.json())
-                            .then(books => {
-                                resultsDiv.innerHTML = '';
-                                books.forEach(book => {
-                                    const item = document.createElement('a');
-                                    item.classList.add('list-group-item', 'list-group-item-action');
-                                    item.innerHTML = `${book.titre} (ISBN: ${book.isbn})`;
-                                    item.addEventListener('click', () => {
-                                        document.getElementById('bookSearch').value = book.titre;
-                                        document.getElementById('selectedBookId').value = book.id_livre;
-                                        resultsDiv.classList.add('d-none');
-                                    });
-                                    resultsDiv.appendChild(item);
-                                });
-                                resultsDiv.classList.remove('d-none');
-                            });
-                    });
-
-                    document.addEventListener('click', function(e) {
-                        if (!e.target.closest('#bookSearch')) {
-                            document.getElementById('bookSearchResults').classList.add('d-none');
-                        }
-                    });
-                    </script>                    
                     <div class="mb-4">
                         <label class="form-label small fw-medium text-gray-800">Utilisateur</label>
                         <div class="input-group">
-                            <input type="text" class="form-control form-control-lg" id="userSearch" 
+                            <span class="input-group-text bg-light border-end-0">
+                                <i class="bi bi-person text-muted"></i>
+                            </span>
+                            <input type="text" class="form-control border-start-0" id="searchUser" 
                                    placeholder="Rechercher un utilisateur..." autocomplete="off"
-                                   list="usersList">
+                                   list="usersList" required>
                             <input type="hidden" name="user_id" id="selectedUserId" required>
                             <datalist id="usersList">
                                 <?php
-                                $usersQuery = $db->query("SELECT user_id, user_nom FROM n_utilisateurs ORDER BY user_nom");
+                                $usersQuery = $db->query("SELECT user_id, user_nom FROM n_utilisateurs WHERE user_role_id = 3 ORDER BY user_nom");
                                 while($user = $usersQuery->fetch(PDO::FETCH_ASSOC)) {
-                                    echo "<option value='" . htmlspecialchars($user['user_nom']) . "'>";
+                                    echo '<option value="' . htmlspecialchars($user['user_nom']) . '" data-id="' . $user['user_id'] . '">';
                                 }
                                 ?>
                             </datalist>
                         </div>
-                        <div id="userSearchResults" class="list-group position-absolute w-100 d-none" 
-                             style="max-height: 200px; overflow-y: auto; z-index: 1000;">
-                        </div>
                     </div>
-                    <script>
-                    document.getElementById('userSearch').addEventListener('input', function(e) {
-                        const searchTerm = e.target.value;
-                        const resultsDiv = document.getElementById('userSearchResults');
-                        
-                        if (searchTerm.length < 2) {
-                            resultsDiv.classList.add('d-none');
-                            return;
-                        }
 
-                        fetch(`search_users.php?term=${encodeURIComponent(searchTerm)}`)
-                            .then(response => response.json())
-                            .then(users => {
-                                resultsDiv.innerHTML = '';
-                                users.forEach(user => {
-                                    const item = document.createElement('a');
-                                    item.classList.add('list-group-item', 'list-group-item-action');
-                                    item.innerHTML = `${user.user_nom} (${user.user_login})`;
-                                    item.addEventListener('click', () => {
-                                        document.getElementById('userSearch').value = user.user_nom;
-                                        document.getElementById('selectedUserId').value = user.user_id;
-                                        resultsDiv.classList.add('d-none');
-                                    });
-                                    resultsDiv.appendChild(item);
-                                });
-                                resultsDiv.classList.remove('d-none');
-                            });
-                    });
-
-                    document.addEventListener('click', function(e) {
-                        if (!e.target.closest('#userSearch')) {
-                            document.getElementById('userSearchResults').classList.add('d-none');
-                        }
-                    });
-                    </script>
                     <div class="mb-4">
                         <label class="form-label small fw-medium text-gray-800">Date de retour prévue</label>
-                        <input type="date" class="form-control form-control-lg" name="date_retour" required>
+                        <input type="date" class="form-control" name="date_retour" required
+                               min="<?php echo date('Y-m-d', strtotime('+1 day')); ?>"
+                               max="<?php echo date('Y-m-d', strtotime('+30 days')); ?>"
+                               value="<?php echo date('Y-m-d', strtotime('+15 days')); ?>">
+                        <div class="form-text">La durée maximale d'emprunt est de 30 jours</div>
                     </div>
                 </div>
-                <div class="modal-footer border-0 pt-0">
+                <div class="modal-footer border-0">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
                     <button type="submit" class="btn btn-primary px-4">Enregistrer</button>
                 </div>
@@ -569,42 +608,132 @@ require_once '../includes/sidebar.php';
     </div>
 </div>
 
-<!-- Return Loan Modal -->
+<!-- Modal Retour -->
 <div class="modal fade" id="returnLoanModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title text-gray-800">Retour d'emprunt</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">Retour de livre</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="?action=return" method="POST" id="returnForm">
-                <input type="hidden" name="id" id="returnId">
+            <form action="return_loan.php" method="POST">
+                <input type="hidden" name="id" id="returnLoanId">
                 <div class="modal-body">
-                    <p class="text-muted mb-4">Confirmez-vous le retour du livre : <strong id="returnBookTitle"></strong> ?</p>
-                    <div class="mb-4">
-                        <label class="form-label small fw-medium text-gray-800">État du livre</label>
-                        <select class="form-select form-select-lg" name="etat" required>
+                    <p class="mb-4">Vous êtes sur le point d'enregistrer le retour du livre :</p>
+                    <p class="fw-bold mb-4" id="returnLoanTitle"></p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">État du livre</label>
+                        <select class="form-select" name="etat" required>
                             <option value="bon">Bon état</option>
-                            <option value="abime">Abîmé</option>
+                            <option value="moyen">État moyen</option>
+                            <option value="mauvais">Mauvais état</option>
                             <option value="perdu">Perdu</option>
                         </select>
                     </div>
-                    <div class="mb-4">
-                        <label class="form-label small fw-medium text-gray-800">Commentaire</label>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Commentaire (optionnel)</label>
                         <textarea class="form-control" name="commentaire" rows="3"></textarea>
                     </div>
                 </div>
-                <div class="modal-footer border-0 pt-0">
+                <div class="modal-footer border-0">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-success px-4">Confirmer le retour</button>
+                    <button type="submit" class="btn btn-success">Confirmer le retour</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
+<!-- Modal Détails -->
+<div class="modal fade" id="viewLoanModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">Détails de l'emprunt</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6 class="mb-3">Informations du livre</h6>
+                <p class="mb-2"><strong>Titre:</strong> <span id="detailsLoanTitle"></span></p>
+                <p class="mb-2"><strong>ISBN:</strong> <span id="detailsLoanIsbn"></span></p>
+                <p class="mb-2"><strong>Code barre:</strong> <span id="detailsLoanBarcode"></span></p>
+                
+                <hr>
+                
+                <h6 class="mb-3">Informations de l'emprunt</h6>
+                <p class="mb-2"><strong>Emprunteur:</strong> <span id="detailsLoanUser"></span></p>
+                <p class="mb-2"><strong>Date d'emprunt:</strong> <span id="detailsLoanBorrowDate"></span></p>
+                <p class="mb-2"><strong>Date de retour prévue:</strong> <span id="detailsLoanReturnDate"></span></p>
+                <p class="mb-2"><strong>Statut:</strong> <span id="detailsLoanStatus"></span></p>
+                
+                <div id="detailsLoanReturnInfo" class="d-none">
+                    <!-- Les informations de retour seront injectées ici par JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Gestion de la sélection du livre
+    const searchLivre = document.getElementById('searchLivre');
+    const selectedLivreId = document.getElementById('selectedLivreId');
+    const form = document.querySelector('#empruntModal form');
+
+    searchLivre.addEventListener('input', function(e) {
+        const datalist = document.getElementById('livresList');
+        const options = datalist.getElementsByTagName('option');
+        const value = e.target.value;
+
+        for (let option of options) {
+            if (option.value === value) {
+                selectedLivreId.value = option.getAttribute('data-id');
+                console.log('Livre sélectionné:', option.value, 'ID:', selectedLivreId.value);
+                return;
+            }
+        }
+        selectedLivreId.value = '';
+    });
+
+    // Gestion de la sélection de l'utilisateur
+    const searchUser = document.getElementById('searchUser');
+    const selectedUserId = document.getElementById('selectedUserId');
+
+    searchUser.addEventListener('input', function(e) {
+        const datalist = document.getElementById('usersList');
+        const options = datalist.getElementsByTagName('option');
+        const value = e.target.value;
+
+        for (let option of options) {
+            if (option.value === value) {
+                selectedUserId.value = option.getAttribute('data-id');
+                console.log('Utilisateur sélectionné:', option.value, 'ID:', selectedUserId.value);
+                return;
+            }
+        }
+        selectedUserId.value = '';
+    });
+
+    // Validation du formulaire
+    form.addEventListener('submit', function(e) {
+        if (!selectedLivreId.value || !selectedUserId.value) {
+            e.preventDefault();
+            alert('Veuillez sélectionner un livre et un utilisateur');
+            return false;
+        }
+        console.log('Soumission du formulaire:', {
+            livre_id: selectedLivreId.value,
+            user_id: selectedUserId.value,
+            date_retour: form.querySelector('[name="date_retour"]').value
+        });
+    });
+
     // Return loan modal handler
     const returnModal = document.getElementById('returnLoanModal');
     if (returnModal) {
@@ -613,10 +742,74 @@ document.addEventListener('DOMContentLoaded', function() {
             const id = button.getAttribute('data-id');
             const titre = button.getAttribute('data-titre');
 
-            returnModal.querySelector('#returnId').value = id;
-            returnModal.querySelector('#returnBookTitle').textContent = titre;
+            document.getElementById('returnLoanId').value = id;
+            document.getElementById('returnLoanTitle').textContent = titre;
+        });
+    }
+
+    // View loan details modal handler
+    const viewModal = document.getElementById('viewLoanModal');
+    if (viewModal) {
+        viewModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const id = button.getAttribute('data-id');
+
+            // Fetch loan details
+            fetch(`loans.php?action=get_details&id=${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    // Book information
+                    document.getElementById('detailsLoanTitle').textContent = data.titre;
+                    document.getElementById('detailsLoanIsbn').textContent = data.isbn;
+                    document.getElementById('detailsLoanBarcode').textContent = data.code_barre;
+                    document.getElementById('detailsLoanUser').textContent = data.user_nom;
+                    document.getElementById('detailsLoanBorrowDate').textContent = data.date_emprunt;
+                    document.getElementById('detailsLoanReturnDate').textContent = data.date_retour_prevue;
+                    document.getElementById('detailsLoanStatus').textContent = data.statut.charAt(0).toUpperCase() + data.statut.slice(1);
+                    
+                    // Afficher les informations de retour si l'emprunt est terminé
+                    const returnInfoDiv = document.getElementById('detailsLoanReturnInfo');
+                    if (data.statut === 'termine' && data.date_retour_effective) {
+                        returnInfoDiv.innerHTML = `
+                            <hr>
+                            <h6 class="mb-3">Informations de retour</h6>
+                            <p class="mb-2"><strong>Date de retour effective:</strong> ${data.date_retour_effective}</p>
+                            <p class="mb-2"><strong>État au retour:</strong> ${data.etat_retour || 'Non spécifié'}</p>
+                            ${data.commentaire_retour ? `<p class="mb-0"><strong>Commentaire:</strong> ${data.commentaire_retour}</p>` : ''}
+                        `;
+                        returnInfoDiv.classList.remove('d-none');
+                    } else {
+                        returnInfoDiv.classList.add('d-none');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Une erreur est survenue lors du chargement des détails');
+                });
         });
     }
 });
 </script>
 
+<!-- Add CSS for responsive behavior -->
+<style>
+    .content {
+        transition: margin-left 0.3s ease;
+        margin-left: 250px; /* Default sidebar width */
+    }
+    
+    body.sidebar-collapsed .content {
+        margin-left: 0; /* When sidebar is collapsed */
+    }
+    
+    @media (max-width: 768px) {
+        .content {
+            margin-left: 0;
+        }
+    }
+</style>
+
+<script src="../public/js/Sidebar.js"></script>

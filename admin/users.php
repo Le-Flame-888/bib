@@ -38,8 +38,8 @@ $query = "SELECT u.*, r.nom_role,
 $params = [];
 
 if (!empty($search)) {
-    $query .= " AND (u.user_nom LIKE ? OR u.user_login LIKE ? OR u.user_email LIKE ?)";
-    $params = array_merge($params, ["%$search%", "%$search%", "%$search%"]);
+    $query .= " AND (u.user_nom LIKE ? OR u.user_login LIKE ? )";
+    $params = array_merge($params, ["%$search%", "%$search%" ]);
 }
 
 if ($role !== 'all') {
@@ -84,7 +84,7 @@ require_once '../includes/sidebar.php';
 ?>
 
 <!-- Main Content Area -->
-<div class="content w-100 m-0 pt-5"  id="content">
+<div class="content p-3"  id="content">
     <div class="container-fluid p-4">
         <!-- Header Section -->
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -497,3 +497,22 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+<!-- Add CSS for responsive behavior -->
+<style>
+    .content {
+        transition: margin-left 0.3s ease;
+        margin-left: 250px; /* Default sidebar width */
+    }
+    
+    body.sidebar-collapsed .content {
+        margin-left: 0; /* When sidebar is collapsed */
+    }
+    
+    @media (max-width: 768px) {
+        .content {
+            margin-left: 0;
+        }
+    }
+</style>
+
+<script src="../public/js/Sidebar.js"></script>

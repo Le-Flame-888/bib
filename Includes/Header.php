@@ -44,18 +44,19 @@ if (!isset($_SESSION)) {
 </head>
 <body>
     <div class="d-flex">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary-custom">
-        <div class="container-fluid px-3 px-lg-4">
-            <div class="d-flex align-items-center w-100">
-                <button class="btn border border-0 toggle-sidebar me-3" id="sidebarToggle">
-                    <i class="bi bi-list"></i>
-                </button>
-                <div class="navbar-brand m-0">
-                    <img src="<?php echo APP_URL; ?>/public/images/SupMTI - W Logo.png" alt="Logo" height="40">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary-custom">
+            <div class="container-fluid px-3 px-lg-4">
+                <div class="d-flex align-items-center w-100">
+                    <button class="btn border border-0 toggle-sidebar me-3" id="sidebarToggle">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="navbar-brand m-0">
+                        <img src="<?php echo APP_URL; ?>/public/images/SupMTI - W Logo.png" alt="Logo" height="40">
+                    </div>
                 </div>
             </div>
-        </div>
-    </nav>
+        </nav>
+    </div>
     <script>
 document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('sidebar');

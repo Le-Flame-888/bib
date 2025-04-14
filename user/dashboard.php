@@ -25,8 +25,6 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['user_role_id'] != 3) {
 
 
 
-require_once '../bootstrap.php'; 
-
 // Récupérer les informations de l'utilisateur
 $user_id = $_SESSION['user']['id'];
 $db = new PDO("mysql:host=localhost;dbname=bibliotheque;charset=utf8", "root", "");
@@ -71,7 +69,7 @@ require_once '../Includes/Sidebar.php';
 ?>
 
 <!-- Main Content Area -->
-<div class="content w-100 m-0 pt-5"  id="content">
+<div class="content p-3"  id="content">
     <div class="container-fluid p-4">
         <!-- Header Section -->
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -168,6 +166,9 @@ require_once '../Includes/Sidebar.php';
                                                     <span class="badge bg-primary rounded-pill">
                                                         <?php echo ucfirst($emprunt['statut']); ?>
                                                     </span>
+                                                    <button class="btn btn-sm btn-link text-primary" onclick="showLoanDetails(<?php echo $emprunt['id_emprunt']; ?>)">
+                                                        Détails
+                                                    </button>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -267,6 +268,35 @@ require_once '../Includes/Sidebar.php';
                 </div>
             </div>
         </div>
+
+        <!-- Loan Details Modal -->
+        <div class="modal fade" id="loanDetailsModal" tabindex="-1" aria-labelledby="loanDetailsModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="loanDetailsModalLabel">Détails de l'emprunt</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-4">
+                            <h6 class="text-primary mb-3">Informations du livre</h6>
+                            <p><strong>Titre:</strong> <span id="bookTitle"></span></p>
+                            <p><strong>ISBN:</strong> <span id="bookIsbn"></span></p>
+                            <p><strong>Code barre:</strong> <span id="bookBarcode"></span></p>
+                        </div>
+                        <div class="mb-4">
+                            <h6 class="text-primary mb-3">Informations de l'emprunt</h6>
+                            <p><strong>Date d'emprunt:</strong> <span id="loanDate"></span></p>
+                            <p><strong>Date de retour prévue:</strong> <span id="returnDate"></span></p>
+                            <p><strong>Statut:</strong> <span id="loanStatus"></span></p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -288,8 +318,52 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-</script>
 
+// Function to show loan details
+function showLoanDetails(loanId) {
+    fetch(`get_loan_details.php?id=${loanId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            
+            // Update modal content
+            document.getElementById('bookTitle').textContent = data.titre;
+            document.getElementById('bookIsbn').textContent = data.isbn;
+            document.getElementById('bookBarcode').textContent = data.code_barre;
+            document.getElementById('loanDate').textContent = data.date_emprunt;
+            document.getElementById('returnDate').textContent = data.date_retour_prevue;
+            document.getElementById('loanStatus').textContent = data.statut;
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('loanDetailsModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Une erreur est survenue lors du chargement des détails');
+        });
+}
+</script>
+<style>
+    .content {
+        transition: margin-left 0.3s ease;
+        margin-left: 250px; /* Default sidebar width */
+    }
+    
+    body.sidebar-collapsed .content {
+        margin-left: 0; /* When sidebar is collapsed */
+    }
+    
+    @media (max-width: 768px) {
+        .content {
+            margin-left: 0;
+        }
+    }
+</style>
+<script src="../public/js/Sidebar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html> 
